@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Jellyfin.Plugin.Rippletube.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -48,18 +49,18 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             new PluginPageInfo
             {
-                Name = "rippletube",
-                EmbeddedResourcePath = GetType().Namespace + ".Web.rippletube.html"
+                Name = Name,
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.html", GetType().Namespace)
             },
             new PluginPageInfo
             {
                 Name = "rippletube.js",
-                EmbeddedResourcePath = GetType().Namespace + ".Web.rippletube.js"
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.js", GetType().Namespace)
             },
             new PluginPageInfo
             {
                 Name = "rippletube.css",
-                EmbeddedResourcePath = GetType().Namespace + ".Web.rippletube.css"
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.css", GetType().Namespace)
             }
         };
     }
