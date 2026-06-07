@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Web\*.html" />
-    <EmbeddedResource Include="Web\*.js" />
-    <EmbeddedResource Include="Web\*.css" />
+    <EmbeddedResource Include="Configuration\*.html" />
+    <EmbeddedResource Include="Configuration\*.js" />
+    <EmbeddedResource Include="Configuration\*.css" />
   </ItemGroup>
 </Project>

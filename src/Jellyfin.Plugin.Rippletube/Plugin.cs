@@ -50,19 +50,17 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
-                DisplayName = Name,
-                IsMainConfigPage = true,
-                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.html", GetType().Namespace)
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.config.html", GetType().Namespace)
             },
             new PluginPageInfo
             {
                 Name = "rippletube.js",
-                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.js", GetType().Namespace)
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.rippletube.js", GetType().Namespace)
             },
             new PluginPageInfo
             {
                 Name = "rippletube.css",
-                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.css", GetType().Namespace)
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.rippletube.css", GetType().Namespace)
             }
         };
     }
