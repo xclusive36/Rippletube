@@ -27,7 +27,7 @@ PLUGIN = {
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", required=True)
-    parser.add_argument("--target-abi", default="10.11.3.0")
+    parser.add_argument("--target-abi", default="10.10.7.0")
     parser.add_argument("--zip", required=True, type=Path)
     parser.add_argument("--source-url", required=True)
     parser.add_argument("--changelog", default="Release build.")

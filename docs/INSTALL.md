@@ -35,7 +35,7 @@ Common plugin roots:
 
 ## Build From Source
 
-1. Install the .NET 9 SDK.
+1. Install the .NET 8 SDK.
 2. Clone or copy this repository.
 3. Build the plugin:
 
@@ -46,7 +46,7 @@ dotnet build -c Release
 4. Copy the built plugin DLL and related output files from:
 
 ```text
-src/Jellyfin.Plugin.Rippletube/bin/Release/net9.0/
+src/Jellyfin.Plugin.Rippletube/bin/Release/net8.0/
 ```
 
 into a Jellyfin plugin folder named `Rippletube`.
@@ -95,7 +95,7 @@ The Jellyfin process user must be able to:
 
 ## Version Compatibility
 
-Jellyfin plugins must reference Jellyfin package versions that match the target server version. This scaffold currently references Jellyfin `10.11.3` packages and targets `net9.0`. If your Jellyfin server uses a different plugin ABI, update the package versions before building.
+Jellyfin plugins must reference Jellyfin package versions that match the target server version. This release line currently references Jellyfin `10.10.7` packages and targets `net8.0`. If your Jellyfin server uses a different plugin ABI, update the package versions before building.
 
 ## Release Maintainer Notes
 

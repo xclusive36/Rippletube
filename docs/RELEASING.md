@@ -16,8 +16,8 @@ The release workflow needs write permission so it can create a GitHub Release an
 Use a four-part Jellyfin-style plugin version:
 
 ```bash
-git tag v0.1.0.0
-git push origin v0.1.0.0
+git tag v0.1.0.1
+git push origin v0.1.0.1
 ```
 
 The release workflow will:
@@ -38,11 +38,11 @@ Users install from this Jellyfin repository URL:
 https://raw.githubusercontent.com/xclusive36/Rippletube/main/manifest.json
 ```
 
-Before the first tagged release, the manifest exists but contains no installable versions.
+The manifest is populated by the latest tagged release.
 
 ## Version Compatibility
 
-The current release workflow and `build.yaml` target Jellyfin ABI `10.11.3.0` and .NET `net9.0`. If a future Jellyfin server version changes plugin ABI requirements, update:
+The current release workflow and `build.yaml` target Jellyfin ABI `10.10.7.0` and .NET `net8.0`. If a future Jellyfin server version changes plugin ABI requirements, update:
 
 - `build.yaml`
 - `.github/workflows/release.yml`

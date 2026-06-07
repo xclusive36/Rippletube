@@ -6,15 +6,6 @@
     "description": "Adds an admin-only Jellyfin page for previewing videos and playlists with yt-dlp, queueing downloads, writing sidecar metadata, and scanning the configured library destination after successful downloads.",
     "owner": "xclusive36",
     "overview": "Admin-only yt-dlp downloader and Jellyfin library importer.",
-    "versions": [
-      {
-        "checksum": "f5c15e53c031320e5b387cbe1ff84c12",
-        "changelog": "Release 0.1.0.0.",
-        "targetAbi": "10.11.3.0",
-        "sourceUrl": "https://github.com/xclusive36/Rippletube/releases/download/v0.1.0.0/Rippletube_0.1.0.0.zip",
-        "timestamp": "2026-06-07T21:57:59Z",
-        "version": "0.1.0.0"
-      }
-    ]
+    "versions": []
   }
 ]

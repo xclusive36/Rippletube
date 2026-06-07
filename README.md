@@ -21,7 +21,7 @@ Rippletube is an admin-only Jellyfin plugin for downloading videos with `yt-dlp`
 - `ffmpeg` installed on the Jellyfin server or inside the Jellyfin Docker container
 - A writable destination folder that is already included in a Jellyfin library
 
-The .NET 9 SDK is only required for developers building from source.
+The .NET 8 SDK is only required for developers building from source.
 
 `ffmpeg` is required even though Rippletube does not force full video recoding in v1. `yt-dlp` often needs `ffmpeg` to merge separate audio/video streams, remux containers, embed metadata, embed thumbnails, or extract audio.
 
