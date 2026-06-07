@@ -1,0 +1,11 @@
+[
+  {
+    "category": "General",
+    "guid": "8f3d0a10-5ac8-4b6d-9983-b3495ebd2d81",
+    "name": "Rippletube",
+    "description": "Adds an admin-only Jellyfin page for previewing videos and playlists with yt-dlp, queueing downloads, writing sidecar metadata, and scanning the configured library destination after successful downloads.",
+    "owner": "xclusive36",
+    "overview": "Admin-only yt-dlp downloader and Jellyfin library importer.",
+    "versions": []
+  }
+]

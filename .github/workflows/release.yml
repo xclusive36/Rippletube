@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "asset=Rippletube_${VERSION}.zip" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore
+        run: dotnet restore Rippletube.sln
+
+      - name: Test
+        run: dotnet test Rippletube.sln --configuration Release --verbosity normal
+
+      - name: Publish plugin
+        run: dotnet publish src/Jellyfin.Plugin.Rippletube/Jellyfin.Plugin.Rippletube.csproj --configuration Release --output artifacts/plugin /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Package plugin
+        shell: bash
+        run: |
+          cd artifacts/plugin
+          zip -r "../${{ steps.version.outputs.asset }}" .
+          cd ..
+          md5sum "${{ steps.version.outputs.asset }}" > "${{ steps.version.outputs.asset }}.md5"
+
+      - name: Generate manifest
+        shell: bash
+        run: |
+          python3 scripts/generate-manifest.py \
+            --version "${{ steps.version.outputs.version }}" \
+            --target-abi "10.11.3.0" \
+            --zip "artifacts/${{ steps.version.outputs.asset }}" \
+            --source-url "https://github.com/xclusive36/Rippletube/releases/download/${GITHUB_REF_NAME}/${{ steps.version.outputs.asset }}" \
+            --changelog "Release ${{ steps.version.outputs.version }}." \
+            --output manifest.json
+          cp manifest.json artifacts/manifest.generated.json
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Rippletube ${{ steps.version.outputs.version }}
+          files: |
+            artifacts/${{ steps.version.outputs.asset }}
+            artifacts/${{ steps.version.outputs.asset }}.md5
+            manifest.json
+          generate_release_notes: true
+
+      - name: Publish manifest to main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -f main
+          cp artifacts/manifest.generated.json manifest.json
+          git add manifest.json
+          git commit -m "Update plugin manifest for ${{ steps.version.outputs.version }}" || exit 0
+          git push origin main
