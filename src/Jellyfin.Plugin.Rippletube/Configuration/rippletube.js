@@ -39,6 +39,18 @@
         page.querySelector('#previewPanel').innerHTML = '';
     }
 
+    function asObject(response) {
+        if (typeof response !== 'string') {
+            return response || {};
+        }
+
+        try {
+            return JSON.parse(response);
+        } catch {
+            return {};
+        }
+    }
+
     function errorMessage(error) {
         if (!error) {
             return 'Unknown error.';
@@ -77,16 +89,23 @@
     }
 
     function renderPreview(preview) {
+        preview = asObject(preview);
         const panel = page.querySelector('#previewPanel');
-        const thumb = preview.thumbnailUrl ? `<img src="${escapeHtml(preview.thumbnailUrl)}" alt="">` : '';
+        const title = preview.title || preview.Title || 'Untitled';
+        const uploader = preview.uploader || preview.Uploader || '';
+        const duration = preview.duration || preview.Duration || '';
+        const playlistCount = preview.playlistCount || preview.PlaylistCount || '';
+        const thumbnailUrl = preview.thumbnailUrl || preview.ThumbnailUrl || '';
+        const thumb = thumbnailUrl ? `<img src="${escapeHtml(thumbnailUrl)}" alt="">` : '';
         panel.innerHTML = `<div class="rippletube-preview">${thumb}<div>
-            <h3>${escapeHtml(preview.title || 'Untitled')}</h3>
-            <p>${escapeHtml(preview.uploader || '')}</p>
-            <p>${escapeHtml(preview.duration || '')}${preview.playlistCount ? ` · ${preview.playlistCount} items` : ''}</p>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(uploader)}</p>
+            <p>${escapeHtml(duration)}${playlistCount ? ` · ${playlistCount} items` : ''}</p>
         </div></div>`;
     }
 
     function renderQueue(snapshot) {
+        snapshot = asObject(snapshot);
         const jobs = snapshot.jobs || snapshot.Jobs || [];
         const panel = page.querySelector('#queuePanel');
         if (!jobs.length) {
@@ -125,6 +144,15 @@
         }).join('');
     }
 
+    function prependJob(job) {
+        job = asObject(job);
+        if (!job.id && !job.Id) {
+            return;
+        }
+
+        renderQueue({ jobs: [job] });
+    }
+
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, char => ({
             '&': '&amp;',
@@ -138,7 +166,7 @@
     async function load() {
         try {
             message('Loading Rippletube configuration...');
-            const config = await api.getConfiguration();
+            const config = asObject(await api.getConfiguration());
             setValue('ytDlpPath', config.ytDlpPath || config.YtDlpPath || 'yt-dlp');
             setValue('ffmpegPath', config.ffmpegPath || config.FfmpegPath || 'ffmpeg');
             setValue('destinationFolder', config.destinationFolder || config.DestinationFolder || '');
@@ -178,7 +206,7 @@
     page.querySelector('#validateButton').addEventListener('click', async () => {
         try {
             message('Validating yt-dlp and ffmpeg...');
-            const result = await api.validate();
+            const result = asObject(await api.validate());
             const errors = result.errors || result.Errors || [];
             const warnings = result.warnings || result.Warnings || [];
             message(errors.length ? errors.join(' ') : `Validation passed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`);
@@ -197,7 +225,8 @@
 
             clearPreview();
             message('Previewing URL with yt-dlp...');
-            renderPreview(await api.preview(url));
+            const preview = await api.preview(url);
+            renderPreview(preview);
             message('Preview loaded.');
         } catch (error) {
             clearPreview();
@@ -214,13 +243,14 @@
             }
 
             message('Submitting job...');
-            await api.submit({
+            const job = await api.submit({
                 url,
                 isPlaylist: checked('isPlaylist'),
                 formatPreset: parseInt(value('formatPreset') || '0', 10),
                 namingTemplate: parseInt(value('namingTemplate') || '0', 10)
             });
             message('Job submitted.');
+            prependJob(job);
             await refreshQueue();
         } catch (error) {
             message(`Submit failed: ${errorMessage(error)}`);
