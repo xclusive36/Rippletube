@@ -290,7 +290,7 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
                 configuration.YtDlpPath,
                 args,
                 line => UpdateProgress(job.Id, line),
-                line => UpdateLogTail(job.Id, line),
+                line => UpdateProgress(job.Id, line),
                 linkedCts.Token).ConfigureAwait(false);
 
             var status = run.ExitCode == 0 ? DownloadJobStatus.Completed : DownloadJobStatus.Failed;
@@ -352,6 +352,16 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
         var match = ProgressRegex().Match(line);
         if (!match.Success)
         {
+            if (line.Contains("[Merger]", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("[ExtractAudio]", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("[EmbedThumbnail]", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("[Metadata]", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("[Fixup", StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateJobText(jobId, line, 100);
+                return;
+            }
+
             UpdateLogTail(jobId, line);
             return;
         }
@@ -372,6 +382,28 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
 
             job.ProgressPercent = Math.Clamp((int)percent, 0, 100);
             job.ProgressText = line;
+            AppendLogTail(job, line);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private void UpdateJobText(Guid jobId, string line, int progressPercent)
+    {
+        _gate.Wait();
+        try
+        {
+            var job = _jobs.FirstOrDefault(item => item.Id == jobId);
+            if (job is null)
+            {
+                return;
+            }
+
+            job.ProgressPercent = Math.Clamp(progressPercent, 0, 100);
+            job.ProgressText = line;
+            AppendLogTail(job, line);
         }
         finally
         {
@@ -390,14 +422,19 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
                 return;
             }
 
-            var combined = string.IsNullOrWhiteSpace(job.LogTail) ? line : job.LogTail + Environment.NewLine + line;
-            var lines = combined.Split(Environment.NewLine).TakeLast(30);
-            job.LogTail = string.Join(Environment.NewLine, lines);
+            AppendLogTail(job, line);
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private static void AppendLogTail(DownloadJob job, string line)
+    {
+        var combined = string.IsNullOrWhiteSpace(job.LogTail) ? line : job.LogTail + Environment.NewLine + line;
+        var lines = combined.Split(Environment.NewLine).TakeLast(30);
+        job.LogTail = string.Join(Environment.NewLine, lines);
     }
 
     private async Task ValidateExecutableAsync(string executable, string versionArgument, string label, ValidationResult result, CancellationToken cancellationToken)

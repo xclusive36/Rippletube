@@ -88,21 +88,33 @@
 
     function renderQueue(snapshot) {
         const jobs = snapshot.jobs || snapshot.Jobs || [];
-        page.querySelector('#queuePanel').innerHTML = jobs.map(job => {
+        const panel = page.querySelector('#queuePanel');
+        if (!jobs.length) {
+            panel.innerHTML = '<div class="fieldDescription">No jobs have been submitted yet.</div>';
+            return;
+        }
+
+        panel.innerHTML = jobs.map(job => {
             const id = job.id || job.Id;
-            const status = job.status || job.Status;
+            const status = normalizeStatus(job.status ?? job.Status);
             const progress = job.progressPercent || job.ProgressPercent || 0;
+            const progressText = job.progressText || job.ProgressText || '';
             const url = job.url || job.Url || '';
             const error = job.errorSummary || job.ErrorSummary || '';
             const log = job.logTail || job.LogTail || '';
-            const canCancel = status === 'Pending' || status === 'Running' || status === 0 || status === 2;
+            const createdAt = job.createdAt || job.CreatedAt || '';
+            const startedAt = job.startedAt || job.StartedAt || '';
+            const finishedAt = job.finishedAt || job.FinishedAt || '';
+            const canCancel = status === 'Pending' || status === 'Running';
             return `<div class="rippletube-job">
                 <div class="rippletube-job-header">
-                    <strong>${escapeHtml(status.toString())}</strong>
+                    <strong>${escapeHtml(status)}</strong>
                     <span>${progress}%</span>
                 </div>
                 <div class="rippletube-progress"><span style="width:${Math.max(0, Math.min(100, progress))}%"></span></div>
+                ${progressText ? `<div class="fieldDescription">${escapeHtml(progressText)}</div>` : ''}
                 <div class="fieldDescription">${escapeHtml(url)}</div>
+                <div class="fieldDescription">${escapeHtml(formatJobTimes(createdAt, startedAt, finishedAt))}</div>
                 ${error ? `<div class="fieldDescription">${escapeHtml(error)}</div>` : ''}
                 ${log ? `<pre class="rippletube-log">${escapeHtml(log)}</pre>` : ''}
                 <div class="rippletube-actions">
@@ -215,6 +227,12 @@
         }
     });
 
+    page.querySelector('#refreshQueueButton').addEventListener('click', async () => {
+        message('Refreshing queue...');
+        await refreshQueue();
+        message('Queue refreshed.');
+    });
+
     page.querySelector('#queuePanel').addEventListener('click', async (event) => {
         const cancelId = event.target.closest('[data-cancel]')?.getAttribute('data-cancel');
         const retryId = event.target.closest('[data-retry]')?.getAttribute('data-retry');
@@ -254,5 +272,39 @@
         }
 
         return map[value] ?? 0;
+    }
+
+    function normalizeStatus(status) {
+        const map = {
+            0: 'Pending',
+            1: 'Previewed',
+            2: 'Running',
+            3: 'Completed',
+            4: 'Failed',
+            5: 'Canceled',
+            6: 'Duplicate skipped'
+        };
+
+        return map[status] || status || 'Unknown';
+    }
+
+    function formatJobTimes(createdAt, startedAt, finishedAt) {
+        const parts = [];
+        if (createdAt) {
+            parts.push(`Created ${formatDate(createdAt)}`);
+        }
+        if (startedAt) {
+            parts.push(`Started ${formatDate(startedAt)}`);
+        }
+        if (finishedAt) {
+            parts.push(`Finished ${formatDate(finishedAt)}`);
+        }
+
+        return parts.join(' · ');
+    }
+
+    function formatDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
     }
 }());
