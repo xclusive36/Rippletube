@@ -1,0 +1,61 @@
+.rippletube {
+    max-width: 960px;
+}
+
+.rippletube-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin: 1rem 0;
+}
+
+.rippletube-panel {
+    margin: 1rem 0;
+}
+
+.rippletube-preview {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.rippletube-preview img {
+    width: 120px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.rippletube-job {
+    border-top: 1px solid rgba(255,255,255,.14);
+    padding: 1rem 0;
+}
+
+.rippletube-job-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.rippletube-progress {
+    height: 6px;
+    background: rgba(255,255,255,.14);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: .5rem 0;
+}
+
+.rippletube-progress > span {
+    display: block;
+    height: 100%;
+    background: #00a4dc;
+}
+
+.rippletube-log {
+    white-space: pre-wrap;
+    max-height: 12rem;
+    overflow: auto;
+    font-family: monospace;
+    font-size: .85rem;
+}
