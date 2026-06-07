@@ -35,6 +35,32 @@
         page.querySelector('#messagePanel').textContent = text || '';
     }
 
+    function clearPreview() {
+        page.querySelector('#previewPanel').innerHTML = '';
+    }
+
+    function errorMessage(error) {
+        if (!error) {
+            return 'Unknown error.';
+        }
+
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        const responseText = error.responseText || error.responseJSON?.error || error.responseJSON?.Error;
+        if (responseText) {
+            try {
+                const parsed = JSON.parse(responseText);
+                return parsed.error || parsed.Error || parsed.title || responseText;
+            } catch {
+                return responseText;
+            }
+        }
+
+        return error.message || error.statusText || 'Request failed.';
+    }
+
     function formData() {
         return {
             ytDlpPath: value('ytDlpPath'),
@@ -98,62 +124,119 @@
     }
 
     async function load() {
-        const config = await api.getConfiguration();
-        setValue('ytDlpPath', config.ytDlpPath || config.YtDlpPath || 'yt-dlp');
-        setValue('ffmpegPath', config.ffmpegPath || config.FfmpegPath || 'ffmpeg');
-        setValue('destinationFolder', config.destinationFolder || config.DestinationFolder || '');
-        setValue('cookiesFilePath', config.cookiesFilePath || config.CookiesFilePath || '');
-        setValue('formatPreset', normalizeEnum(config.formatPreset ?? config.FormatPreset, { CompatibleMp4: 0, BestAvailable: 1, AudioOnly: 2, Capped1080p: 3 }));
-        setValue('namingTemplate', normalizeEnum(config.namingTemplate ?? config.NamingTemplate, { UploaderTitleWithId: 0, PlaylistIndexTitleWithId: 1, FlatTitleWithId: 2 }));
-        setValue('maxPlaylistItems', config.maxPlaylistItems || config.MaxPlaylistItems || 25);
-        setValue('minimumFreeSpaceGb', config.minimumFreeSpaceGb || config.MinimumFreeSpaceGb || 5);
-        setValue('historyRetention', config.historyRetention || config.HistoryRetention || 100);
-        setChecked('autoScanLibrary', config.autoScanLibrary ?? config.AutoScanLibrary ?? true);
-        await refreshQueue();
+        try {
+            message('Loading Rippletube configuration...');
+            const config = await api.getConfiguration();
+            setValue('ytDlpPath', config.ytDlpPath || config.YtDlpPath || 'yt-dlp');
+            setValue('ffmpegPath', config.ffmpegPath || config.FfmpegPath || 'ffmpeg');
+            setValue('destinationFolder', config.destinationFolder || config.DestinationFolder || '');
+            setValue('cookiesFilePath', config.cookiesFilePath || config.CookiesFilePath || '');
+            setValue('formatPreset', normalizeEnum(config.formatPreset ?? config.FormatPreset, { CompatibleMp4: 0, BestAvailable: 1, AudioOnly: 2, Capped1080p: 3 }));
+            setValue('namingTemplate', normalizeEnum(config.namingTemplate ?? config.NamingTemplate, { UploaderTitleWithId: 0, PlaylistIndexTitleWithId: 1, FlatTitleWithId: 2 }));
+            setValue('maxPlaylistItems', config.maxPlaylistItems || config.MaxPlaylistItems || 25);
+            setValue('minimumFreeSpaceGb', config.minimumFreeSpaceGb || config.MinimumFreeSpaceGb || 5);
+            setValue('historyRetention', config.historyRetention || config.HistoryRetention || 100);
+            setChecked('autoScanLibrary', config.autoScanLibrary ?? config.AutoScanLibrary ?? true);
+            await refreshQueue();
+            message('');
+        } catch (error) {
+            message(`Unable to load configuration: ${errorMessage(error)}`);
+        }
     }
 
     async function refreshQueue() {
-        renderQueue(await api.jobs());
+        try {
+            renderQueue(await api.jobs());
+        } catch (error) {
+            message(`Unable to refresh queue: ${errorMessage(error)}`);
+        }
     }
 
     page.querySelector('#rippletubeConfigForm').addEventListener('submit', async (event) => {
         event.preventDefault();
-        await api.saveConfiguration(formData());
-        message('Configuration saved.');
+        try {
+            message('Saving configuration...');
+            await api.saveConfiguration(formData());
+            message('Configuration saved.');
+        } catch (error) {
+            message(`Save failed: ${errorMessage(error)}`);
+        }
     });
 
     page.querySelector('#validateButton').addEventListener('click', async () => {
-        const result = await api.validate();
-        const errors = result.errors || result.Errors || [];
-        const warnings = result.warnings || result.Warnings || [];
-        message(errors.length ? errors.join(' ') : `Validation passed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`);
+        try {
+            message('Validating yt-dlp and ffmpeg...');
+            const result = await api.validate();
+            const errors = result.errors || result.Errors || [];
+            const warnings = result.warnings || result.Warnings || [];
+            message(errors.length ? errors.join(' ') : `Validation passed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`);
+        } catch (error) {
+            message(`Validation failed: ${errorMessage(error)}`);
+        }
     });
 
     page.querySelector('#previewButton').addEventListener('click', async () => {
-        renderPreview(await api.preview(value('downloadUrl')));
+        try {
+            const url = value('downloadUrl').trim();
+            if (!url) {
+                message('Enter a video or playlist URL first.');
+                return;
+            }
+
+            clearPreview();
+            message('Previewing URL with yt-dlp...');
+            renderPreview(await api.preview(url));
+            message('Preview loaded.');
+        } catch (error) {
+            clearPreview();
+            message(`Preview failed: ${errorMessage(error)}`);
+        }
     });
 
     page.querySelector('#submitButton').addEventListener('click', async () => {
-        await api.submit({
-            url: value('downloadUrl'),
-            isPlaylist: checked('isPlaylist'),
-            formatPreset: parseInt(value('formatPreset') || '0', 10),
-            namingTemplate: parseInt(value('namingTemplate') || '0', 10)
-        });
-        message('Job submitted.');
-        await refreshQueue();
+        try {
+            const url = value('downloadUrl').trim();
+            if (!url) {
+                message('Enter a video or playlist URL first.');
+                return;
+            }
+
+            message('Submitting job...');
+            await api.submit({
+                url,
+                isPlaylist: checked('isPlaylist'),
+                formatPreset: parseInt(value('formatPreset') || '0', 10),
+                namingTemplate: parseInt(value('namingTemplate') || '0', 10)
+            });
+            message('Job submitted.');
+            await refreshQueue();
+        } catch (error) {
+            message(`Submit failed: ${errorMessage(error)}`);
+        }
     });
 
     page.querySelector('#queuePanel').addEventListener('click', async (event) => {
         const cancelId = event.target.closest('[data-cancel]')?.getAttribute('data-cancel');
         const retryId = event.target.closest('[data-retry]')?.getAttribute('data-retry');
         if (cancelId) {
-            await api.cancel(cancelId);
-            await refreshQueue();
+            try {
+                message('Canceling job...');
+                await api.cancel(cancelId);
+                await refreshQueue();
+                message('Job canceled.');
+            } catch (error) {
+                message(`Cancel failed: ${errorMessage(error)}`);
+            }
         }
         if (retryId) {
-            await api.retry(retryId);
-            await refreshQueue();
+            try {
+                message('Retrying job...');
+                await api.retry(retryId);
+                await refreshQueue();
+                message('Job queued for retry.');
+            } catch (error) {
+                message(`Retry failed: ${errorMessage(error)}`);
+            }
         }
     });
 
