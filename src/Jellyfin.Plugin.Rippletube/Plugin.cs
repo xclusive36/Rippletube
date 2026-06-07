@@ -43,6 +43,9 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override string Description => "Admin-only yt-dlp downloader and Jellyfin library importer.";
 
     /// <inheritdoc />
+    public override string ConfigurationFileName => "Rippletube.xml";
+
+    /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {
         return new[]
