@@ -50,6 +50,8 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
+                DisplayName = Name,
+                IsMainConfigPage = true,
                 EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Web.rippletube.html", GetType().Namespace)
             },
             new PluginPageInfo
