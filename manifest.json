@@ -8,12 +8,12 @@
     "overview": "Admin-only yt-dlp downloader and Jellyfin library importer.",
     "versions": [
       {
-        "checksum": "58f67cd245cafb29f45b8d285c7d05e3",
-        "changelog": "Release 0.1.0.13.",
+        "checksum": "15f5463f9fb26b40d5ce5a5ddbaf0ab2",
+        "changelog": "Release 0.1.0.14.",
         "targetAbi": "10.10.7.0",
-        "sourceUrl": "https://github.com/xclusive36/Rippletube/releases/download/v0.1.0.13/Rippletube_0.1.0.13.zip",
-        "timestamp": "2026-06-08T17:31:25Z",
-        "version": "0.1.0.13"
+        "sourceUrl": "https://github.com/xclusive36/Rippletube/releases/download/v0.1.0.14/Rippletube_0.1.0.14.zip",
+        "timestamp": "2026-06-08T18:29:52Z",
+        "version": "0.1.0.14"
       }
     ]
   }
