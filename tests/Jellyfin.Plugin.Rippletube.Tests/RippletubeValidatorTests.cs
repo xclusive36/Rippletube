@@ -48,4 +48,30 @@ public sealed class RippletubeValidatorTests
         Assert.True(RippletubeValidator.IsPathWithinDestination(Path.Combine(root, "child", "file.mp4"), root));
         Assert.False(RippletubeValidator.IsPathWithinDestination(Path.Combine(Path.GetTempPath(), "other", "file.mp4"), root));
     }
+
+    [Fact]
+    public void AllowsWritableDestinationFolder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rippletube-writable-" + Path.GetRandomFileName());
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var result = RippletubeValidator.ValidateConfiguration(new PluginConfiguration
+            {
+                YtDlpPath = "yt-dlp",
+                FfmpegPath = "ffmpeg",
+                DestinationFolder = root,
+                MaxPlaylistItems = 25,
+                HistoryRetention = 100
+            });
+
+            Assert.True(result.IsValid);
+            Assert.Empty(Directory.GetDirectories(root, ".rippletube-write-test-*"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

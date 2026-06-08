@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security;
 using Jellyfin.Plugin.Rippletube.Configuration;
 
 namespace Jellyfin.Plugin.Rippletube.Services;
@@ -32,6 +33,10 @@ public static class RippletubeValidator
         else if (!Directory.Exists(configuration.DestinationFolder))
         {
             result.Errors.Add("Destination folder does not exist.");
+        }
+        else
+        {
+            ValidateDestinationWriteAccess(configuration.DestinationFolder, result);
         }
 
         if (configuration.MaxPlaylistItems < 1 || configuration.MaxPlaylistItems > 500)
@@ -100,6 +105,40 @@ public static class RippletubeValidator
         }
 
         return result;
+    }
+
+    private static void ValidateDestinationWriteAccess(string destinationFolder, ValidationResult result)
+    {
+        var testDirectory = Path.Combine(destinationFolder, $".rippletube-write-test-{Guid.NewGuid():N}");
+        var testFile = Path.Combine(testDirectory, "probe.tmp");
+
+        try
+        {
+            Directory.CreateDirectory(testDirectory);
+            File.WriteAllText(testFile, "rippletube");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException)
+        {
+            result.Errors.Add($"Destination folder is not writable by the Jellyfin process: {ex.Message}");
+        }
+        finally
+        {
+            TryDeleteDirectory(testDirectory);
+        }
+    }
+
+    private static void TryDeleteDirectory(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+        }
     }
 
     public static bool IsPathWithinDestination(string candidatePath, string destinationFolder)

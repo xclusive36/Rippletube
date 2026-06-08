@@ -23,8 +23,18 @@
 
 - Confirm the destination path is visible from the Jellyfin process.
 - Confirm Jellyfin has write permission to the destination folder.
+- Confirm Jellyfin can create subfolders inside the destination folder. Rippletube's default naming template creates uploader/title subdirectories.
 - In Docker, confirm the volume is mounted read-write.
 - Confirm the path configured in Rippletube is the container path, not the host-only path.
+
+Example Linux package install:
+
+```bash
+sudo chown -R jellyfin:jellyfin /path/to/destination
+sudo chmod -R u+rwX /path/to/destination
+```
+
+If the media directory is shared with another user or service, prefer a shared media group instead of making everything world-writable.
 
 ## Playlist Too Large
 
