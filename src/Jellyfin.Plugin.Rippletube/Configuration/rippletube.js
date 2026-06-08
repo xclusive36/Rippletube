@@ -12,15 +12,27 @@
     let refreshTimer = null;
 
     const api = {
-        getConfiguration: () => ApiClient.ajax({ type: 'GET', url: noCacheUrl('Rippletube/Configuration') }),
-        saveConfiguration: (data) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Configuration'), data: JSON.stringify(data), contentType: 'application/json' }),
-        validate: () => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Validate') }),
-        preview: (url) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Preview'), data: JSON.stringify({ url }), contentType: 'application/json' }),
-        submit: (data) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Jobs'), data: JSON.stringify(data), contentType: 'application/json' }),
-        jobs: () => ApiClient.ajax({ type: 'GET', url: noCacheUrl('Rippletube/Jobs') }),
-        cancel: (id) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Cancel`) }),
-        retry: (id) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Retry`) })
+        getConfiguration: () => ajaxJson({ type: 'GET', url: noCacheUrl('Rippletube/Configuration') }),
+        saveConfiguration: (data) => ajaxJson({ type: 'POST', url: ApiClient.getUrl('Rippletube/Configuration'), data: JSON.stringify(data) }),
+        validate: () => ajaxJson({ type: 'POST', url: ApiClient.getUrl('Rippletube/Validate') }),
+        preview: (url) => ajaxJson({ type: 'POST', url: ApiClient.getUrl('Rippletube/Preview'), data: JSON.stringify({ url }) }),
+        submit: (data) => ajaxJson({ type: 'POST', url: ApiClient.getUrl('Rippletube/Jobs'), data: JSON.stringify(data) }),
+        jobs: () => ajaxJson({ type: 'GET', url: noCacheUrl('Rippletube/Jobs') }),
+        cancel: (id) => ajaxJson({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Cancel`) }),
+        retry: (id) => ajaxJson({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Retry`) })
     };
+
+    async function ajaxJson(options) {
+        const response = await ApiClient.ajax(Object.assign({
+            contentType: 'application/json',
+            dataType: 'json',
+            headers: {
+                Accept: 'application/json'
+            }
+        }, options));
+
+        return asObject(response);
+    }
 
     function noCacheUrl(path) {
         const url = ApiClient.getUrl(path);
@@ -60,15 +72,50 @@
     }
 
     function asObject(response) {
+        if (response?.responseJSON) {
+            return response.responseJSON;
+        }
+
+        if (response?.responseText) {
+            return parseJsonText(response.responseText);
+        }
+
+        if (response?.data) {
+            return asObject(response.data);
+        }
+
         if (typeof response !== 'string') {
             return response || {};
         }
 
+        return parseJsonText(response);
+    }
+
+    function parseJsonText(text) {
         try {
-            return JSON.parse(response);
+            return JSON.parse(text);
         } catch {
-            return {};
+            return {
+                _rippletubeInvalidResponse: true,
+                _rippletubeSnippet: truncate(String(text || ''), 500)
+            };
         }
+    }
+
+    function describeResponse(response) {
+        response = asObject(response);
+        if (response._rippletubeInvalidResponse) {
+            return response._rippletubeSnippet
+                ? ` Response was not JSON: ${response._rippletubeSnippet}`
+                : ' Response was empty or not JSON.';
+        }
+
+        const keys = Object.keys(response);
+        return keys.length ? ` Response keys: ${keys.join(', ')}.` : ' Response was empty or not JSON.';
+    }
+
+    function truncate(value, maxLength) {
+        return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
     }
 
     function errorMessage(error) {
@@ -132,9 +179,7 @@
         const panel = page.querySelector('#queuePanel');
         const jobs = snapshot.jobs || snapshot.Jobs;
         if (!Array.isArray(jobs)) {
-            const keys = Object.keys(snapshot);
-            const details = keys.length ? ` Response keys: ${keys.join(', ')}.` : ' Response was empty or not JSON.';
-            panel.innerHTML = `<div class="rippletube-error">Queue response did not include a jobs list.${escapeHtml(details)}</div>`;
+            panel.innerHTML = `<div class="rippletube-error">Queue response did not include a jobs list.${escapeHtml(describeResponse(snapshot))}</div>`;
             return false;
         }
 
@@ -178,7 +223,7 @@
     function prependJob(job) {
         job = asObject(job);
         if (!job.id && !job.Id) {
-            return;
+            throw new Error(`Submit response did not include a job id.${describeResponse(job)}`);
         }
 
         renderQueue({ jobs: [job] });
