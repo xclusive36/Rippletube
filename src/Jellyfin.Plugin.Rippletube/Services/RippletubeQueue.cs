@@ -109,10 +109,22 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
         EnsureUrl(url);
         var configuration = GetConfiguration();
         var args = _argumentBuilder.BuildPreviewArguments(url, configuration);
-        var run = await _processRunner.RunAsync(configuration.YtDlpPath, args, null, null, cancellationToken).ConfigureAwait(false);
+        using var previewCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        previewCts.CancelAfter(TimeSpan.FromSeconds(60));
+
+        ProcessRunResult run;
+        try
+        {
+            run = await _processRunner.RunAsync(configuration.YtDlpPath, args, null, null, previewCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("yt-dlp preview timed out after 60 seconds. Check that the Jellyfin server can reach YouTube and that cookies are configured if YouTube requires sign-in.");
+        }
+
         if (run.ExitCode != 0)
         {
-            throw new InvalidOperationException(Summarize(run.StandardError, "yt-dlp preview failed."));
+            throw new InvalidOperationException(SummarizeProcessFailure(run, "yt-dlp preview failed."));
         }
 
         using var document = JsonDocument.Parse(run.StandardOutput);
@@ -294,7 +306,7 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
                 linkedCts.Token).ConfigureAwait(false);
 
             var status = run.ExitCode == 0 ? DownloadJobStatus.Completed : DownloadJobStatus.Failed;
-            var summary = status == DownloadJobStatus.Completed ? string.Empty : Summarize(run.StandardError, "yt-dlp download failed.");
+            var summary = status == DownloadJobStatus.Completed ? string.Empty : SummarizeProcessFailure(run, "yt-dlp download failed.");
             if (status == DownloadJobStatus.Completed && run.StandardOutput.Contains("has already been recorded in the archive", StringComparison.OrdinalIgnoreCase))
             {
                 status = DownloadJobStatus.DuplicateSkipped;
@@ -568,6 +580,12 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
 
         var lines = value.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return lines.LastOrDefault() ?? fallback;
+    }
+
+    private static string SummarizeProcessFailure(ProcessRunResult run, string fallback)
+    {
+        var combined = string.Join(Environment.NewLine, run.StandardError, run.StandardOutput);
+        return Summarize(combined, fallback);
     }
 
     [GeneratedRegex(@"\[download\]\s+(\d+(?:\.\d+)?)%")]

@@ -44,10 +44,21 @@ public sealed class RippletubeQueueTests
         Assert.Contains(snapshot.Jobs, item => item.Id == job.Id && item.Status == DownloadJobStatus.Canceled);
     }
 
-    private static RippletubeQueue CreateQueue()
+    [Fact]
+    public async Task PreviewIncludesStdoutWhenYtDlpFailsWithoutStderr()
+    {
+        var queue = CreateQueue(new FakeProcessRunner(new ProcessRunResult(1, "yt-dlp stdout failure", string.Empty)));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            queue.PreviewAsync("https://example.com/video", CancellationToken.None));
+
+        Assert.Contains("yt-dlp stdout failure", ex.Message);
+    }
+
+    private static RippletubeQueue CreateQueue(IProcessRunner? processRunner = null)
     {
         return new RippletubeQueue(
-            new FakeProcessRunner(),
+            processRunner ?? new FakeProcessRunner(),
             new FakeConfigurationProvider(),
             new YtDlpArgumentBuilder(),
             new MemoryStateStore(),
@@ -57,6 +68,18 @@ public sealed class RippletubeQueueTests
 
     private sealed class FakeProcessRunner : IProcessRunner
     {
+        private readonly ProcessRunResult _result;
+
+        public FakeProcessRunner()
+            : this(new ProcessRunResult(0, "2026.01.01", string.Empty))
+        {
+        }
+
+        public FakeProcessRunner(ProcessRunResult result)
+        {
+            _result = result;
+        }
+
         public Task<ProcessRunResult> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
@@ -64,7 +87,7 @@ public sealed class RippletubeQueueTests
             Action<string>? onError,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(new ProcessRunResult(0, "2026.01.01", string.Empty));
+            return Task.FromResult(_result);
         }
     }
 

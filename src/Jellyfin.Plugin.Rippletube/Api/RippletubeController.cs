@@ -6,6 +6,7 @@ using Jellyfin.Plugin.Rippletube.Models;
 using Jellyfin.Plugin.Rippletube.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Rippletube.Api;
 
@@ -18,10 +19,12 @@ namespace Jellyfin.Plugin.Rippletube.Api;
 public sealed class RippletubeController : ControllerBase
 {
     private readonly IRippletubeQueue _queue;
+    private readonly ILogger<RippletubeController> _logger;
 
-    public RippletubeController(IRippletubeQueue queue)
+    public RippletubeController(IRippletubeQueue queue, ILogger<RippletubeController> logger)
     {
         _queue = queue;
+        _logger = logger;
     }
 
     [HttpGet("Configuration")]
@@ -81,7 +84,9 @@ public sealed class RippletubeController : ControllerBase
     {
         try
         {
-            return await _queue.SubmitAsync(request, cancellationToken).ConfigureAwait(false);
+            var job = await _queue.SubmitAsync(request, cancellationToken).ConfigureAwait(false);
+            PulseQueueWorker();
+            return job;
         }
         catch (InvalidOperationException ex)
         {
@@ -105,6 +110,27 @@ public sealed class RippletubeController : ControllerBase
     public async Task<ActionResult<DownloadJob>> Retry(Guid jobId, CancellationToken cancellationToken)
     {
         var job = await _queue.RetryAsync(jobId, cancellationToken).ConfigureAwait(false);
+        if (job is not null)
+        {
+            PulseQueueWorker();
+        }
+
         return job is null ? NotFound() : job;
+    }
+
+    private void PulseQueueWorker()
+    {
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    await _queue.RunNextAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to start the next Rippletube job.");
+                }
+            });
     }
 }

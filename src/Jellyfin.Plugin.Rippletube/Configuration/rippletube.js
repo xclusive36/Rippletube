@@ -231,7 +231,8 @@
             }
 
             clearPreview();
-            message('Previewing URL with yt-dlp...');
+            message('Saving configuration and previewing URL with yt-dlp...');
+            await api.saveConfiguration(formData());
             const preview = await api.preview(url);
             renderPreview(preview);
             message('Preview loaded.');
@@ -249,14 +250,15 @@
                 return;
             }
 
-            message('Submitting job...');
+            message('Saving configuration and submitting job...');
+            await api.saveConfiguration(formData());
             const job = await api.submit({
                 url,
                 isPlaylist: checked('isPlaylist'),
                 formatPreset: parseInt(value('formatPreset') || '0', 10),
                 namingTemplate: parseInt(value('namingTemplate') || '0', 10)
             });
-            message('Job submitted.');
+            message('Job submitted. The queue should switch to Running within a few seconds.');
             prependJob(job);
             await refreshQueue();
         } catch (error) {
