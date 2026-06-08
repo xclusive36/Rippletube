@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -68,13 +69,22 @@ public sealed class ProcessRunner : IProcessRunner
             onError?.Invoke(args.Data);
         };
 
-        process.Start();
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+            throw new InvalidOperationException($"Unable to start '{fileName}': {ex.Message}", ex);
+        }
+
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
         try
         {
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            process.WaitForExit();
         }
         catch (OperationCanceledException)
         {

@@ -1,8 +1,15 @@
 (function () {
-    const page = document.querySelector('#rippletubePage');
+    const page = document.querySelector('#rippletubePage:not(.hide)') || document.querySelector('#rippletubePage');
     if (!page) {
         return;
     }
+
+    if (page.dataset.rippletubeInitialized === 'true') {
+        return;
+    }
+
+    page.dataset.rippletubeInitialized = 'true';
+    let refreshTimer = null;
 
     const api = {
         getConfiguration: () => ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('Rippletube/Configuration') }),
@@ -288,13 +295,15 @@
         }
     });
 
-    document.addEventListener('pageshow', (event) => {
-        if (event.target && event.target.id === 'rippletubePage') {
-            load();
-        }
+    page.addEventListener('viewshow', () => {
+        load();
+        startRefreshTimer();
     });
+
+    page.addEventListener('viewhide', stopRefreshTimer);
+
     load();
-    setInterval(refreshQueue, 5000);
+    startRefreshTimer();
 
     function normalizeEnum(value, map) {
         if (typeof value === 'number') {
@@ -336,5 +345,17 @@
     function formatDate(value) {
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function startRefreshTimer() {
+        stopRefreshTimer();
+        refreshTimer = window.setInterval(refreshQueue, 5000);
+    }
+
+    function stopRefreshTimer() {
+        if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
     }
 }());

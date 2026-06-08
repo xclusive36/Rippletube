@@ -34,7 +34,6 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
             "--no-progress"
         };
 
-        AppendCommonPaths(args, configuration);
         AppendCookies(args, configuration);
         args.Add(url);
         return args;
@@ -109,7 +108,7 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
 
     private static void AppendCommonPaths(List<string> args, PluginConfiguration configuration)
     {
-        if (!string.IsNullOrWhiteSpace(configuration.FfmpegPath))
+        if (ShouldPassFfmpegLocation(configuration.FfmpegPath))
         {
             args.Add("--ffmpeg-location");
             args.Add(configuration.FfmpegPath);
@@ -123,5 +122,13 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
             args.Add("--cookies");
             args.Add(configuration.CookiesFilePath);
         }
+    }
+
+    private static bool ShouldPassFfmpegLocation(string ffmpegPath)
+    {
+        return !string.IsNullOrWhiteSpace(ffmpegPath)
+               && (Path.IsPathFullyQualified(ffmpegPath)
+                   || ffmpegPath.Contains(Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                   || ffmpegPath.Contains(Path.AltDirectorySeparatorChar, StringComparison.Ordinal));
     }
 }

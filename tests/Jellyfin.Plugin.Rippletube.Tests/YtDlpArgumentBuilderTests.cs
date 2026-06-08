@@ -34,7 +34,7 @@ public sealed class YtDlpArgumentBuilderTests
             new PluginConfiguration
             {
                 DestinationFolder = "/media/downloads",
-                FfmpegPath = "ffmpeg"
+                FfmpegPath = "/usr/bin/ffmpeg"
             },
             "/state/archive.txt");
 
@@ -43,8 +43,44 @@ public sealed class YtDlpArgumentBuilderTests
         Assert.Contains("--write-thumbnail", args);
         Assert.Contains("--download-archive", args);
         Assert.Contains("/state/archive.txt", args);
-        Assert.Contains("ffmpeg", args);
+        Assert.Contains("/usr/bin/ffmpeg", args);
         Assert.Contains(args, item => item.Contains("%(title)s [%(id)s].%(ext)s"));
+    }
+
+    [Fact]
+    public void PreviewDoesNotRequireFfmpeg()
+    {
+        var args = _builder.BuildPreviewArguments(
+            "https://example.com/watch?v=abc",
+            new PluginConfiguration
+            {
+                FfmpegPath = "/missing/ffmpeg"
+            });
+
+        Assert.Contains("--dump-single-json", args);
+        Assert.DoesNotContain("--ffmpeg-location", args);
+        Assert.DoesNotContain("/missing/ffmpeg", args);
+    }
+
+    [Fact]
+    public void DownloadLetsYtDlpFindFfmpegCommandOnPath()
+    {
+        var args = _builder.BuildDownloadArguments(
+            new DownloadJob
+            {
+                Url = "https://example.com/watch?v=abc",
+                IsPlaylist = false,
+                FormatPreset = DownloadFormatPreset.CompatibleMp4,
+                NamingTemplate = NamingTemplatePreset.FlatTitleWithId
+            },
+            new PluginConfiguration
+            {
+                DestinationFolder = "/media/downloads",
+                FfmpegPath = "ffmpeg"
+            },
+            "/state/archive.txt");
+
+        Assert.DoesNotContain("--ffmpeg-location", args);
     }
 
     [Fact]
