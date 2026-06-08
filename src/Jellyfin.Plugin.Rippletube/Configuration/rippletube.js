@@ -23,8 +23,9 @@
     };
 
     function noCacheUrl(path) {
-        const separator = path.indexOf('?') === -1 ? '?' : '&';
-        return ApiClient.getUrl(`${path}${separator}_=${Date.now()}`);
+        const url = ApiClient.getUrl(path);
+        const separator = url.indexOf('?') === -1 ? '?' : '&';
+        return `${url}${separator}_=${Date.now()}`;
     }
 
     function value(id) {
@@ -131,7 +132,9 @@
         const panel = page.querySelector('#queuePanel');
         const jobs = snapshot.jobs || snapshot.Jobs;
         if (!Array.isArray(jobs)) {
-            panel.innerHTML = '<div class="rippletube-error">Queue response did not include a jobs list.</div>';
+            const keys = Object.keys(snapshot);
+            const details = keys.length ? ` Response keys: ${keys.join(', ')}.` : ' Response was empty or not JSON.';
+            panel.innerHTML = `<div class="rippletube-error">Queue response did not include a jobs list.${escapeHtml(details)}</div>`;
             return false;
         }
 
