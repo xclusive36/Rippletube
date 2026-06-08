@@ -13,6 +13,21 @@
     margin: 1rem 0;
 }
 
+.rippletube-message-error,
+.rippletube-error {
+    color: #ffb3b3;
+}
+
+.rippletube-message-success {
+    color: #9be7b1;
+}
+
+.rippletube-error {
+    border-top: 1px solid rgba(255,255,255,.14);
+    padding: 1rem 0;
+    white-space: pre-wrap;
+}
+
 .rippletube-preview {
     display: grid;
     grid-template-columns: 120px minmax(0, 1fr);

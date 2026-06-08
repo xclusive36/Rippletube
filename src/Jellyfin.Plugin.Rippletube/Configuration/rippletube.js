@@ -43,12 +43,19 @@
         page.querySelector(`#${id}`).checked = !!val;
     }
 
-    function message(text) {
-        page.querySelector('#messagePanel').textContent = text || '';
+    function message(text, kind) {
+        const panel = page.querySelector('#messagePanel');
+        panel.textContent = text || '';
+        panel.classList.toggle('rippletube-message-error', kind === 'error');
+        panel.classList.toggle('rippletube-message-success', kind === 'success');
     }
 
     function clearPreview() {
         page.querySelector('#previewPanel').innerHTML = '';
+    }
+
+    function renderQueueError(text) {
+        page.querySelector('#queuePanel').innerHTML = `<div class="rippletube-error">${escapeHtml(text)}</div>`;
     }
 
     function asObject(response) {
@@ -73,16 +80,19 @@
         }
 
         const responseText = error.responseText || error.responseJSON?.error || error.responseJSON?.Error;
+        const status = error.status ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ''}` : '';
         if (responseText) {
             try {
                 const parsed = JSON.parse(responseText);
-                return parsed.error || parsed.Error || parsed.title || responseText;
+                const text = parsed.error || parsed.Error || parsed.title || responseText;
+                return status ? `${status}: ${text}` : text;
             } catch {
-                return responseText;
+                return status ? `${status}: ${responseText}` : responseText;
             }
         }
 
-        return error.message || error.statusText || 'Request failed.';
+        const text = error.message || error.statusText || 'Request failed.';
+        return status ? `${status}: ${text}` : text;
     }
 
     function formData() {
@@ -118,11 +128,16 @@
 
     function renderQueue(snapshot) {
         snapshot = asObject(snapshot);
-        const jobs = snapshot.jobs || snapshot.Jobs || [];
         const panel = page.querySelector('#queuePanel');
+        const jobs = snapshot.jobs || snapshot.Jobs;
+        if (!Array.isArray(jobs)) {
+            panel.innerHTML = '<div class="rippletube-error">Queue response did not include a jobs list.</div>';
+            return false;
+        }
+
         if (!jobs.length) {
             panel.innerHTML = '<div class="fieldDescription">No jobs have been submitted yet.</div>';
-            return;
+            return true;
         }
 
         panel.innerHTML = jobs.map(job => {
@@ -154,6 +169,7 @@
                 </div>
             </div>`;
         }).join('');
+        return true;
     }
 
     function prependJob(job) {
@@ -189,18 +205,33 @@
             setValue('minimumFreeSpaceGb', config.minimumFreeSpaceGb || config.MinimumFreeSpaceGb || 5);
             setValue('historyRetention', config.historyRetention || config.HistoryRetention || 100);
             setChecked('autoScanLibrary', config.autoScanLibrary ?? config.AutoScanLibrary ?? true);
-            await refreshQueue();
-            message('');
+            const queueLoaded = await refreshQueue({ silent: true });
+            if (queueLoaded) {
+                message('');
+            }
         } catch (error) {
-            message(`Unable to load configuration: ${errorMessage(error)}`);
+            message(`Unable to load configuration: ${errorMessage(error)}`, 'error');
         }
     }
 
-    async function refreshQueue() {
+    async function refreshQueue(options) {
         try {
-            renderQueue(await api.jobs());
+            const rendered = renderQueue(await api.jobs());
+            if (!rendered) {
+                message('Unable to refresh queue: invalid response from Rippletube API.', 'error');
+                return false;
+            }
+
+            if (!options?.silent) {
+                message('Queue refreshed.', 'success');
+            }
+
+            return true;
         } catch (error) {
-            message(`Unable to refresh queue: ${errorMessage(error)}`);
+            const text = `Unable to refresh queue: ${errorMessage(error)}`;
+            renderQueueError(text);
+            message(text, 'error');
+            return false;
         }
     }
 
@@ -209,9 +240,9 @@
         try {
             message('Saving configuration...');
             await api.saveConfiguration(formData());
-            message('Configuration saved.');
+            message('Configuration saved.', 'success');
         } catch (error) {
-            message(`Save failed: ${errorMessage(error)}`);
+            message(`Save failed: ${errorMessage(error)}`, 'error');
         }
     });
 
@@ -221,9 +252,9 @@
             const result = asObject(await api.validate());
             const errors = result.errors || result.Errors || [];
             const warnings = result.warnings || result.Warnings || [];
-            message(errors.length ? errors.join(' ') : `Validation passed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`);
+            message(errors.length ? errors.join(' ') : `Validation passed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`, errors.length ? 'error' : 'success');
         } catch (error) {
-            message(`Validation failed: ${errorMessage(error)}`);
+            message(`Validation failed: ${errorMessage(error)}`, 'error');
         }
     });
 
@@ -240,10 +271,10 @@
             await api.saveConfiguration(formData());
             const preview = await api.preview(url);
             renderPreview(preview);
-            message('Preview loaded.');
+            message('Preview loaded.', 'success');
         } catch (error) {
             clearPreview();
-            message(`Preview failed: ${errorMessage(error)}`);
+            message(`Preview failed: ${errorMessage(error)}`, 'error');
         }
     });
 
@@ -263,17 +294,16 @@
                 formatPreset: parseInt(value('formatPreset') || '0', 10),
                 namingTemplate: parseInt(value('namingTemplate') || '0', 10)
             });
-            message('Job submitted. The queue should switch to Running within a few seconds.');
+            message('Job submitted. The queue should switch to Running within a few seconds.', 'success');
             prependJob(job);
         } catch (error) {
-            message(`Submit failed: ${errorMessage(error)}`);
+            message(`Submit failed: ${errorMessage(error)}`, 'error');
         }
     });
 
     page.querySelector('#refreshQueueButton').addEventListener('click', async () => {
         message('Refreshing queue...');
         await refreshQueue();
-        message('Queue refreshed.');
     });
 
     page.querySelector('#queuePanel').addEventListener('click', async (event) => {
@@ -284,9 +314,9 @@
                 message('Canceling job...');
                 await api.cancel(cancelId);
                 await refreshQueue();
-                message('Job canceled.');
+                message('Job canceled.', 'success');
             } catch (error) {
-                message(`Cancel failed: ${errorMessage(error)}`);
+                message(`Cancel failed: ${errorMessage(error)}`, 'error');
             }
         }
         if (retryId) {
@@ -294,9 +324,9 @@
                 message('Retrying job...');
                 await api.retry(retryId);
                 await refreshQueue();
-                message('Job queued for retry.');
+                message('Job queued for retry.', 'success');
             } catch (error) {
-                message(`Retry failed: ${errorMessage(error)}`);
+                message(`Retry failed: ${errorMessage(error)}`, 'error');
             }
         }
     });
