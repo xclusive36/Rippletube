@@ -12,15 +12,20 @@
     let refreshTimer = null;
 
     const api = {
-        getConfiguration: () => ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('Rippletube/Configuration') }),
+        getConfiguration: () => ApiClient.ajax({ type: 'GET', url: noCacheUrl('Rippletube/Configuration') }),
         saveConfiguration: (data) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Configuration'), data: JSON.stringify(data), contentType: 'application/json' }),
         validate: () => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Validate') }),
         preview: (url) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Preview'), data: JSON.stringify({ url }), contentType: 'application/json' }),
         submit: (data) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Rippletube/Jobs'), data: JSON.stringify(data), contentType: 'application/json' }),
-        jobs: () => ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('Rippletube/Jobs') }),
+        jobs: () => ApiClient.ajax({ type: 'GET', url: noCacheUrl('Rippletube/Jobs') }),
         cancel: (id) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Cancel`) }),
         retry: (id) => ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl(`Rippletube/Jobs/${id}/Retry`) })
     };
+
+    function noCacheUrl(path) {
+        const separator = path.indexOf('?') === -1 ? '?' : '&';
+        return ApiClient.getUrl(`${path}${separator}_=${Date.now()}`);
+    }
 
     function value(id) {
         return page.querySelector(`#${id}`).value;
@@ -260,7 +265,6 @@
             });
             message('Job submitted. The queue should switch to Running within a few seconds.');
             prependJob(job);
-            await refreshQueue();
         } catch (error) {
             message(`Submit failed: ${errorMessage(error)}`);
         }

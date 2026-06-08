@@ -28,6 +28,7 @@ public sealed class RippletubeController : ControllerBase
     }
 
     [HttpGet("Configuration")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public ActionResult<PluginConfiguration> GetConfiguration()
     {
         return Plugin.Instance?.Configuration ?? new PluginConfiguration();
@@ -95,6 +96,7 @@ public sealed class RippletubeController : ControllerBase
     }
 
     [HttpGet("Jobs")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public Task<QueueSnapshot> GetJobs(CancellationToken cancellationToken)
     {
         return _queue.GetSnapshotAsync(cancellationToken);
