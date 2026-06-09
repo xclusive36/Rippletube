@@ -357,15 +357,7 @@
                 return;
             }
 
-            message('Saving configuration and submitting job...');
-            try {
-                await api.saveConfiguration(formData());
-            } catch (error) {
-                message(`Save failed before submit: ${errorMessage(error)}`, 'error');
-                return;
-            }
-
-            message('Submitting job...');
+            message('Submitting job using saved configuration...');
             const job = await api.submit({
                 url,
                 isPlaylist: checked('isPlaylist'),
