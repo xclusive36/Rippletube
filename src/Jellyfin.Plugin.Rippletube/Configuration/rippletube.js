@@ -339,14 +339,6 @@
             }
 
             clearPreview();
-            message('Saving configuration...');
-            try {
-                await api.saveConfiguration(formData());
-            } catch (error) {
-                message(`Save failed before preview: ${errorMessage(error)}`, 'error');
-                return;
-            }
-
             message('Previewing URL with yt-dlp...');
             const preview = await api.preview(url);
             renderPreview(preview);
