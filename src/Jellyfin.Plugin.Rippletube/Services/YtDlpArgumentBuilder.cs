@@ -45,7 +45,6 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
         var args = new List<string>
         {
             "--newline",
-            "--ignore-errors",
             "--no-overwrites",
             "--download-archive",
             archivePath,
@@ -64,6 +63,12 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
             "-o",
             Path.Combine(configuration.DestinationFolder, GetOutputTemplate(job.NamingTemplate))
         };
+
+        if (job.FormatPreset == DownloadFormatPreset.CompatibleMp4)
+        {
+            args.Add("--merge-output-format");
+            args.Add("mp4");
+        }
 
         AppendCommonPaths(args, configuration);
         AppendCookies(args, configuration);

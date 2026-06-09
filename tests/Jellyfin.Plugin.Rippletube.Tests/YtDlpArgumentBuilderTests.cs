@@ -44,6 +44,9 @@ public sealed class YtDlpArgumentBuilderTests
         Assert.Contains("--download-archive", args);
         Assert.Contains("/state/archive.txt", args);
         Assert.Contains("/usr/bin/ffmpeg", args);
+        Assert.DoesNotContain("--ignore-errors", args);
+        Assert.Contains("--merge-output-format", args);
+        Assert.Contains("mp4", args);
         Assert.Contains(args, item => item.Contains("%(title)s [%(id)s].%(ext)s"));
     }
 
@@ -81,6 +84,27 @@ public sealed class YtDlpArgumentBuilderTests
             "/state/archive.txt");
 
         Assert.DoesNotContain("--ffmpeg-location", args);
+    }
+
+    [Fact]
+    public void BestAvailableDoesNotForceMp4MergeContainer()
+    {
+        var args = _builder.BuildDownloadArguments(
+            new DownloadJob
+            {
+                Url = "https://example.com/watch?v=abc",
+                IsPlaylist = false,
+                FormatPreset = DownloadFormatPreset.BestAvailable,
+                NamingTemplate = NamingTemplatePreset.FlatTitleWithId
+            },
+            new PluginConfiguration
+            {
+                DestinationFolder = "/media/downloads",
+                FfmpegPath = "ffmpeg"
+            },
+            "/state/archive.txt");
+
+        Assert.DoesNotContain("--merge-output-format", args);
     }
 
     [Fact]
