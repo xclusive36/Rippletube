@@ -10,6 +10,37 @@
             <form id="rippletubeConfigForm">
                 <h1>Rippletube</h1>
                 <div class="sectionTitleContainer">
+                    <h2 class="sectionTitle">Add YouTube URL</h2>
+                </div>
+                <div class="inputContainer">
+                    <input is="emby-input" id="downloadUrl" label="Video or playlist URL" autocomplete="off" />
+                </div>
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" id="isPlaylist" type="checkbox" />
+                    <span>Allow playlist download using configured cap</span>
+                </label>
+                <div class="rippletube-actions">
+                    <button is="emby-button" type="button" id="previewButton" class="raised block">
+                        <span>Preview</span>
+                    </button>
+                    <button is="emby-button" type="button" id="submitButton" class="raised button-submit block">
+                        <span>Submit</span>
+                    </button>
+                </div>
+                <div id="previewPanel" class="rippletube-panel"></div>
+                <div id="messagePanel" class="fieldDescription rippletube-message"></div>
+
+                <div class="sectionTitleContainer">
+                    <h2 class="sectionTitle">Queue</h2>
+                </div>
+                <div class="rippletube-actions">
+                    <button is="emby-button" type="button" id="refreshQueueButton" class="raised block">
+                        <span>Refresh queue</span>
+                    </button>
+                </div>
+                <div id="queuePanel" class="rippletube-queue"></div>
+
+                <div class="sectionTitleContainer rippletube-configuration-title">
                     <h2 class="sectionTitle">Configuration</h2>
                 </div>
                 <div class="inputContainer">
@@ -62,41 +93,10 @@
                     </button>
                 </div>
             </form>
-
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Download</h2>
-            </div>
-            <div class="inputContainer">
-                <input is="emby-input" id="downloadUrl" label="Video or playlist URL" />
-            </div>
-            <label class="checkboxContainer">
-                <input is="emby-checkbox" id="isPlaylist" type="checkbox" />
-                <span>Allow playlist download using configured cap</span>
-            </label>
-            <div class="rippletube-actions">
-                <button is="emby-button" type="button" id="previewButton" class="raised block">
-                    <span>Preview</span>
-                </button>
-                <button is="emby-button" type="button" id="submitButton" class="raised button-submit block">
-                    <span>Submit</span>
-                </button>
-            </div>
-            <div id="previewPanel" class="rippletube-panel"></div>
-            <div id="messagePanel" class="fieldDescription"></div>
-
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Queue</h2>
-            </div>
-            <div class="rippletube-actions">
-                <button is="emby-button" type="button" id="refreshQueueButton" class="raised block">
-                    <span>Refresh queue</span>
-                </button>
-            </div>
-            <div id="queuePanel" class="rippletube-queue"></div>
         </div>
     </div>
-    <script src="configurationpage?name=rippletube.js&v=0.1.0.21"></script>
-    <link rel="stylesheet" href="configurationpage?name=rippletube.css&v=0.1.0.21" />
+    <script src="configurationpage?name=rippletube.js&v=0.1.0.22"></script>
+    <link rel="stylesheet" href="configurationpage?name=rippletube.css&v=0.1.0.22" />
 </div>
 </body>
 </html>

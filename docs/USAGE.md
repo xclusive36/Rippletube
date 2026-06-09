@@ -18,6 +18,28 @@ Set:
 
 Save the configuration, then run validation.
 
+## Add A Jellyfin Menu Link
+
+Rippletube is served as a Jellyfin plugin page. You can bookmark it directly:
+
+```text
+https://YOUR-JELLYFIN-SERVER/web/#/configurationpage?name=Rippletube
+```
+
+Jellyfin Web also supports custom menu links through its `config.json`. Add a link like this to the `menuLinks` array:
+
+```json
+{
+  "name": "Rippletube",
+  "icon": "download",
+  "url": "https://YOUR-JELLYFIN-SERVER/web/#/configurationpage?name=Rippletube"
+}
+```
+
+The exact `config.json` location depends on your Jellyfin install. For Docker, it is commonly mounted over `/jellyfin/jellyfin-web/config.json`; for Linux package installs, it is commonly under `/usr/share/jellyfin/web/config.json`. Reload Jellyfin Web after changing it.
+
+Rippletube does not edit this file automatically because Jellyfin Web owns the side menu configuration.
+
 ## Preview A URL
 
 Paste a video or playlist URL and click Preview. Rippletube asks `yt-dlp` for metadata and shows the title, uploader/channel, duration, thumbnail, and playlist count when available.

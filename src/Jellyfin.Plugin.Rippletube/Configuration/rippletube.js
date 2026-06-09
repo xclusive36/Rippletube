@@ -67,6 +67,13 @@
         page.querySelector('#previewPanel').innerHTML = '';
     }
 
+    function focusDownloadUrl() {
+        const input = page.querySelector('#downloadUrl');
+        if (input && !input.value) {
+            input.focus();
+        }
+    }
+
     function renderQueueError(text) {
         page.querySelector('#queuePanel').innerHTML = `<div class="rippletube-error">${escapeHtml(text)}</div>`;
     }
@@ -246,15 +253,6 @@
         return true;
     }
 
-    function prependJob(job) {
-        job = asObject(job);
-        if (!job.id && !job.Id) {
-            throw new Error(`Submit response did not include a job id.${describeResponse(job)}`);
-        }
-
-        renderQueue({ jobs: [job] });
-    }
-
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, char => ({
             '&': '&amp;',
@@ -283,6 +281,7 @@
             if (queueLoaded) {
                 message('');
             }
+            focusDownloadUrl();
         } catch (error) {
             message(`Unable to load configuration: ${errorMessage(error)}`, 'error');
         }
@@ -332,12 +331,13 @@
         }
     });
 
-    page.querySelector('#previewButton').addEventListener('click', async () => {
+    async function previewDownloadUrl() {
         try {
             const url = value('downloadUrl').trim();
             if (!url) {
                 message('Enter a video or playlist URL first.');
-                return;
+                focusDownloadUrl();
+                return false;
             }
 
             clearPreview();
@@ -345,33 +345,56 @@
             const preview = await api.preview(url);
             renderPreview(preview);
             message('Preview loaded.', 'success');
+            return true;
         } catch (error) {
             clearPreview();
             message(`Preview failed: ${errorMessage(error)}`, 'error');
+            return false;
         }
-    });
+    }
 
-    page.querySelector('#submitButton').addEventListener('click', async () => {
+    async function submitDownloadUrl() {
         try {
             const url = value('downloadUrl').trim();
             if (!url) {
                 message('Enter a video or playlist URL first.');
-                return;
+                focusDownloadUrl();
+                return false;
             }
 
             message('Submitting job using saved configuration...');
-            const job = await api.submit({
+            await api.submit({
                 url,
                 isPlaylist: checked('isPlaylist'),
                 formatPreset: parseInt(value('formatPreset') || '0', 10),
                 namingTemplate: parseInt(value('namingTemplate') || '0', 10)
             });
             message('Job submitted. The queue should switch to Running within a few seconds.', 'success');
-            prependJob(job);
+            await refreshQueue({ silent: true });
+            return true;
         } catch (error) {
             message(`Submit failed: ${errorMessage(error)}`, 'error');
+            return false;
         }
+    }
+
+    page.querySelector('#downloadUrl').addEventListener('keydown', async (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        if (event.metaKey || event.ctrlKey) {
+            await submitDownloadUrl();
+            return;
+        }
+
+        await previewDownloadUrl();
     });
+
+    page.querySelector('#previewButton').addEventListener('click', previewDownloadUrl);
+
+    page.querySelector('#submitButton').addEventListener('click', submitDownloadUrl);
 
     page.querySelector('#refreshQueueButton').addEventListener('click', async () => {
         message('Refreshing queue...');
@@ -457,7 +480,7 @@
 
     function startRefreshTimer() {
         stopRefreshTimer();
-        refreshTimer = window.setInterval(refreshQueue, 5000);
+        refreshTimer = window.setInterval(() => refreshQueue({ silent: true }), 5000);
     }
 
     function stopRefreshTimer() {
