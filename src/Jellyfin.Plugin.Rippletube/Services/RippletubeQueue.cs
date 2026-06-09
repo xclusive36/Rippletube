@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -43,6 +44,22 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
     private readonly List<DownloadJob> _jobs = [];
     private CancellationTokenSource? _activeJobCts;
     private bool _initialized;
+    private static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".3gp",
+        ".aac",
+        ".flac",
+        ".m4a",
+        ".m4v",
+        ".mka",
+        ".mkv",
+        ".mov",
+        ".mp3",
+        ".mp4",
+        ".ogg",
+        ".opus",
+        ".webm"
+    };
 
     public RippletubeQueue(
         IProcessRunner processRunner,
@@ -312,11 +329,14 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
                 status = DownloadJobStatus.DuplicateSkipped;
             }
 
-            await FinishJobAsync(job.Id, status, summary, run.ExitCode, workerToken).ConfigureAwait(false);
-            if (status == DownloadJobStatus.Completed)
-            {
-                await _libraryScanService.TryScanAsync(workerToken).ConfigureAwait(false);
-            }
+            var outputPath = status == DownloadJobStatus.Completed
+                ? ExtractDownloadedOutputPath(run.StandardOutput, configuration.DestinationFolder)
+                : string.Empty;
+            var completionNote = status == DownloadJobStatus.Completed
+                ? await _libraryScanService.TryScanAsync(workerToken).ConfigureAwait(false)
+                : string.Empty;
+
+            await FinishJobAsync(job.Id, status, summary, run.ExitCode, workerToken, outputPath, completionNote).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -333,7 +353,14 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
         }
     }
 
-    private async Task FinishJobAsync(Guid jobId, DownloadJobStatus status, string errorSummary, int? exitCode, CancellationToken cancellationToken)
+    private async Task FinishJobAsync(
+        Guid jobId,
+        DownloadJobStatus status,
+        string errorSummary,
+        int? exitCode,
+        CancellationToken cancellationToken,
+        string outputPath = "",
+        string completionNote = "")
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -349,7 +376,18 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
             job.ExitCode = exitCode;
             job.FinishedAt = DateTimeOffset.UtcNow;
             job.ProgressPercent = status == DownloadJobStatus.Completed ? 100 : job.ProgressPercent;
-            job.ProgressText = status.ToString();
+            job.ProgressText = BuildProgressText(status, completionNote);
+            if (!string.IsNullOrWhiteSpace(outputPath))
+            {
+                job.OutputPath = outputPath;
+                AppendLogTail(job, $"Output: {outputPath}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(completionNote))
+            {
+                AppendLogTail(job, completionNote);
+            }
+
             TrimHistory();
             await PersistLockedAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -447,6 +485,58 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
         var combined = string.IsNullOrWhiteSpace(job.LogTail) ? line : job.LogTail + Environment.NewLine + line;
         var lines = combined.Split(Environment.NewLine).TakeLast(30);
         job.LogTail = string.Join(Environment.NewLine, lines);
+    }
+
+    private static string BuildProgressText(DownloadJobStatus status, string completionNote)
+    {
+        return string.IsNullOrWhiteSpace(completionNote)
+            ? status.ToString()
+            : $"{status}. {completionNote}";
+    }
+
+    private static string ExtractDownloadedOutputPath(string standardOutput, string destinationFolder)
+    {
+        if (string.IsNullOrWhiteSpace(standardOutput) || string.IsNullOrWhiteSpace(destinationFolder))
+        {
+            return string.Empty;
+        }
+
+        var paths = standardOutput
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeOutputPathLine)
+            .Where(path => IsMediaOutputPath(path, destinationFolder))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return string.Join(Environment.NewLine, paths);
+    }
+
+    private static string NormalizeOutputPathLine(string line)
+    {
+        var match = MergedOutputPathRegex().Match(line);
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
+
+        var trimmed = line.Trim();
+        return trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[^1] == '"'
+            ? trimmed[1..^1]
+            : trimmed;
+    }
+
+    private static bool IsMediaOutputPath(string path, string destinationFolder)
+    {
+        try
+        {
+            return Path.IsPathFullyQualified(path)
+                && RippletubeValidator.IsPathWithinDestination(path, destinationFolder)
+                && MediaExtensions.Contains(Path.GetExtension(path));
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private async Task ValidateExecutableAsync(string executable, string versionArgument, string label, ValidationResult result, CancellationToken cancellationToken)
@@ -590,4 +680,7 @@ public sealed partial class RippletubeQueue : IRippletubeQueue
 
     [GeneratedRegex(@"\[download\]\s+(\d+(?:\.\d+)?)%")]
     private static partial Regex ProgressRegex();
+
+    [GeneratedRegex("into \"(.+?)\"")]
+    private static partial Regex MergedOutputPathRegex();
 }

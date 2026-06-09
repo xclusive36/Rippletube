@@ -220,6 +220,7 @@
             const url = job.url || job.Url || '';
             const error = job.errorSummary || job.ErrorSummary || '';
             const log = job.logTail || job.LogTail || '';
+            const outputPath = job.outputPath || job.OutputPath || '';
             const createdAt = job.createdAt || job.CreatedAt || '';
             const startedAt = job.startedAt || job.StartedAt || '';
             const finishedAt = job.finishedAt || job.FinishedAt || '';
@@ -233,6 +234,7 @@
                 ${progressText ? `<div class="fieldDescription">${escapeHtml(progressText)}</div>` : ''}
                 <div class="fieldDescription">${escapeHtml(url)}</div>
                 <div class="fieldDescription">${escapeHtml(formatJobTimes(createdAt, startedAt, finishedAt))}</div>
+                ${outputPath ? `<div class="fieldDescription">Output: ${escapeHtml(outputPath)}</div>` : ''}
                 ${error ? `<div class="fieldDescription">${escapeHtml(error)}</div>` : ''}
                 ${log ? `<pre class="rippletube-log">${escapeHtml(log)}</pre>` : ''}
                 <div class="rippletube-actions">

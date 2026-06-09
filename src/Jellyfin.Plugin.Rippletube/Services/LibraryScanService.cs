@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.Rippletube.Services;
 
 public interface ILibraryScanService
 {
-    Task TryScanAsync(CancellationToken cancellationToken);
+    Task<string> TryScanAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -27,40 +27,66 @@ public sealed class LibraryScanService : ILibraryScanService
         _logger = logger;
     }
 
-    public async Task TryScanAsync(CancellationToken cancellationToken)
+    public async Task<string> TryScanAsync(CancellationToken cancellationToken)
     {
         if (Plugin.Instance?.Configuration.AutoScanLibrary != true)
         {
-            return;
+            return "Automatic Jellyfin library scan is disabled.";
         }
 
         var libraryManagerType = Type.GetType("MediaBrowser.Controller.Library.ILibraryManager, MediaBrowser.Controller");
         if (libraryManagerType is null)
         {
             _logger.LogWarning("Unable to locate Jellyfin ILibraryManager type; skipping library scan.");
-            return;
+            return "Jellyfin library scan was not queued: ILibraryManager type was unavailable.";
         }
 
         var libraryManager = _serviceProvider.GetService(libraryManagerType);
         if (libraryManager is null)
         {
             _logger.LogWarning("Unable to resolve Jellyfin ILibraryManager; skipping library scan.");
-            return;
+            return "Jellyfin library scan was not queued: ILibraryManager could not be resolved.";
         }
 
-        var scanMethod = libraryManagerType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .FirstOrDefault(method => (method.Name == "ValidateMediaLibrary" || method.Name == "ScanLibrary") && method.GetParameters().Length == 0);
-
-        if (scanMethod is null)
+        try
         {
-            _logger.LogWarning("Unable to find a compatible Jellyfin library scan method; skipping library scan.");
-            return;
+            var queueMethod = libraryManagerType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(method => method.Name == "QueueLibraryScan" && method.GetParameters().Length == 0);
+
+            if (queueMethod is not null)
+            {
+                queueMethod.Invoke(libraryManager, null);
+                return "Jellyfin library scan queued.";
+            }
+
+            var scanMethod = libraryManagerType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(method => method.Name == "ValidateMediaLibrary"
+                    && method.GetParameters() is var parameters
+                    && parameters.Length == 2
+                    && parameters[0].ParameterType.IsGenericType
+                    && parameters[0].ParameterType.GetGenericTypeDefinition() == typeof(IProgress<>)
+                    && parameters[1].ParameterType == typeof(CancellationToken));
+
+            if (scanMethod is null)
+            {
+                _logger.LogWarning("Unable to find a compatible Jellyfin library scan method; skipping library scan.");
+                return "Jellyfin library scan was not queued: no compatible scan method was found.";
+            }
+
+            var progressType = typeof(Progress<>).MakeGenericType(typeof(double));
+            var progress = Activator.CreateInstance(progressType);
+            var result = scanMethod.Invoke(libraryManager, [progress, cancellationToken]);
+            if (result is Task task)
+            {
+                await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            return "Jellyfin library scan completed.";
         }
-
-        var result = scanMethod.Invoke(libraryManager, null);
-        if (result is Task task)
+        catch (Exception ex) when (ex is InvalidOperationException or TargetInvocationException or ArgumentException)
         {
-            await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogWarning(ex, "Unable to queue Jellyfin library scan.");
+            return $"Jellyfin library scan was not queued: {ex.GetBaseException().Message}";
         }
     }
 }

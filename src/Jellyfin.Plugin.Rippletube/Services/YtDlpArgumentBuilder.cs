@@ -58,6 +58,8 @@ public sealed class YtDlpArgumentBuilder : IYtDlpArgumentBuilder
             "jpg",
             "--embed-metadata",
             "--restrict-filenames",
+            "--print",
+            "after_move:filepath",
             "-f",
             GetFormatSelector(job.FormatPreset),
             "-o",

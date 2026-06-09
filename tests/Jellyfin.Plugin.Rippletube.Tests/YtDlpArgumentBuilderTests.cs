@@ -43,6 +43,8 @@ public sealed class YtDlpArgumentBuilderTests
         Assert.Contains("--write-thumbnail", args);
         Assert.Contains("--download-archive", args);
         Assert.Contains("/state/archive.txt", args);
+        Assert.Contains("--print", args);
+        Assert.Contains("after_move:filepath", args);
         Assert.Contains("/usr/bin/ffmpeg", args);
         Assert.DoesNotContain("--ignore-errors", args);
         Assert.Contains("--merge-output-format", args);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Rippletube.Models;
@@ -55,14 +56,45 @@ public sealed class RippletubeQueueTests
         Assert.Contains("yt-dlp stdout failure", ex.Message);
     }
 
-    private static RippletubeQueue CreateQueue(IProcessRunner? processRunner = null)
+    [Fact]
+    public async Task CompletedDownloadStoresOutputPathAndQueuesLibraryScan()
+    {
+        var destinationFolder = Path.Combine(Path.GetTempPath(), "rippletube-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(destinationFolder);
+        var outputPath = Path.Combine(destinationFolder, "Creator", "Video [abc]", "Video.mp4");
+        var scanService = new RecordingLibraryScanService();
+        var queue = CreateQueue(
+            new FakeProcessRunner(new ProcessRunResult(0, outputPath, string.Empty)),
+            destinationFolder,
+            scanService);
+
+        await queue.SubmitAsync(new SubmitDownloadRequest
+        {
+            Url = "https://example.com/video",
+            IsPlaylist = false
+        }, CancellationToken.None);
+        await queue.RunNextAsync(CancellationToken.None);
+
+        var snapshot = await queue.GetSnapshotAsync(CancellationToken.None);
+        var job = Assert.Single(snapshot.Jobs);
+
+        Assert.Equal(DownloadJobStatus.Completed, job.Status);
+        Assert.Equal(outputPath, job.OutputPath);
+        Assert.Contains("Jellyfin library scan queued.", job.ProgressText);
+        Assert.Equal(1, scanService.CallCount);
+    }
+
+    private static RippletubeQueue CreateQueue(
+        IProcessRunner? processRunner = null,
+        string? destinationFolder = null,
+        ILibraryScanService? libraryScanService = null)
     {
         return new RippletubeQueue(
             processRunner ?? new FakeProcessRunner(),
-            new FakeConfigurationProvider(),
+            new FakeConfigurationProvider(destinationFolder),
             new YtDlpArgumentBuilder(),
             new MemoryStateStore(),
-            new NoopLibraryScanService(),
+            libraryScanService ?? new NoopLibraryScanService(),
             NullLogger<RippletubeQueue>.Instance);
     }
 
@@ -93,13 +125,20 @@ public sealed class RippletubeQueueTests
 
     private sealed class FakeConfigurationProvider : IRippletubeConfigurationProvider
     {
+        private readonly string _destinationFolder;
+
+        public FakeConfigurationProvider(string? destinationFolder)
+        {
+            _destinationFolder = destinationFolder ?? Path.GetTempPath();
+        }
+
         public Jellyfin.Plugin.Rippletube.Configuration.PluginConfiguration GetConfiguration()
         {
             return new Jellyfin.Plugin.Rippletube.Configuration.PluginConfiguration
             {
                 YtDlpPath = "yt-dlp",
                 FfmpegPath = "ffmpeg",
-                DestinationFolder = System.IO.Path.GetTempPath(),
+                DestinationFolder = _destinationFolder,
                 MaxPlaylistItems = 25,
                 MinimumFreeSpaceGb = 0,
                 HistoryRetention = 100
@@ -129,9 +168,20 @@ public sealed class RippletubeQueueTests
 
     private sealed class NoopLibraryScanService : ILibraryScanService
     {
-        public Task TryScanAsync(CancellationToken cancellationToken)
+        public Task<string> TryScanAsync(CancellationToken cancellationToken)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(string.Empty);
+        }
+    }
+
+    private sealed class RecordingLibraryScanService : ILibraryScanService
+    {
+        public int CallCount { get; private set; }
+
+        public Task<string> TryScanAsync(CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult("Jellyfin library scan queued.");
         }
     }
 }
