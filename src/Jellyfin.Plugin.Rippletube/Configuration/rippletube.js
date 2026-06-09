@@ -127,20 +127,44 @@
             return error;
         }
 
-        const responseText = error.responseText || error.responseJSON?.error || error.responseJSON?.Error;
         const status = error.status ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ''}` : '';
-        if (responseText) {
+        const responseJsonText = describeErrorPayload(error.responseJSON);
+        if (responseJsonText) {
+            return status ? `${status}: ${responseJsonText}` : responseJsonText;
+        }
+
+        if (error.responseText) {
             try {
-                const parsed = JSON.parse(responseText);
-                const text = parsed.error || parsed.Error || parsed.title || responseText;
+                const parsed = JSON.parse(error.responseText);
+                const text = describeErrorPayload(parsed) || error.responseText;
                 return status ? `${status}: ${text}` : text;
             } catch {
-                return status ? `${status}: ${responseText}` : responseText;
+                return status ? `${status}: ${error.responseText}` : error.responseText;
             }
         }
 
         const text = error.message || error.statusText || 'Request failed.';
         return status ? `${status}: ${text}` : text;
+    }
+
+    function describeErrorPayload(payload) {
+        if (!payload) {
+            return '';
+        }
+
+        const errors = payload.errors || payload.Errors;
+        if (Array.isArray(errors) && errors.length) {
+            return errors.join(' ');
+        }
+
+        if (errors && typeof errors === 'object') {
+            const messages = Object.values(errors).flat().filter(Boolean);
+            if (messages.length) {
+                return messages.join(' ');
+            }
+        }
+
+        return payload.error || payload.Error || payload.title || payload.message || payload.Message || '';
     }
 
     function formData() {
@@ -315,8 +339,15 @@
             }
 
             clearPreview();
-            message('Saving configuration and previewing URL with yt-dlp...');
-            await api.saveConfiguration(formData());
+            message('Saving configuration...');
+            try {
+                await api.saveConfiguration(formData());
+            } catch (error) {
+                message(`Save failed before preview: ${errorMessage(error)}`, 'error');
+                return;
+            }
+
+            message('Previewing URL with yt-dlp...');
             const preview = await api.preview(url);
             renderPreview(preview);
             message('Preview loaded.', 'success');
@@ -335,7 +366,14 @@
             }
 
             message('Saving configuration and submitting job...');
-            await api.saveConfiguration(formData());
+            try {
+                await api.saveConfiguration(formData());
+            } catch (error) {
+                message(`Save failed before submit: ${errorMessage(error)}`, 'error');
+                return;
+            }
+
+            message('Submitting job...');
             const job = await api.submit({
                 url,
                 isPlaylist: checked('isPlaylist'),
